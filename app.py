@@ -2,54 +2,115 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-st.title("Dashboard Bioinformático – Ejemplo: Troponina cardíaca")
+# -----------------------------
+# ESTILO (CSS)
+# -----------------------------
+st.markdown("""
+<style>
+.big-title {
+    font-size: 38px;
+    color: #4A90E2;
+    font-weight: bold;
+}
 
-st.sidebar.title("Menú")
-sección = st.sidebar.selectbox(
+.card {
+    padding: 18px;
+    border-radius: 12px;
+    background-color: #F3F6FA;
+    border-left: 6px solid #4A90E2;
+    margin-bottom: 15px;
+}
+
+.section-title {
+    font-size: 26px;
+    color: #2C3E50;
+    font-weight: bold;
+    margin-top: 20px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# -----------------------------
+# TÍTULO PRINCIPAL
+# -----------------------------
+st.markdown('<p class="big-title">📊 Dashboard Bioinformático – Troponina</p>', unsafe_allow_html=True)
+
+st.sidebar.title("📌 Menú")
+seccion = st.sidebar.selectbox(
     "Selecciona sección",
-    ["Inicio", "Cargar datos", "Ejemplo: niveles de Troponina"]
+    ["Inicio", "Cargar datos", "Ejemplo: Troponina"]
 )
 
-if sección == "Inicio":
-    st.write("""
-    Bienvenido al dashboard. Este proyecto permite cargar datos, visualizar tablas y gráficas,
-    y además incluye un ejemplo biomédico usando niveles simulados de troponina cardíaca.
-    """)
+# -----------------------------
+# SECCIÓN INICIO
+# -----------------------------
+if seccion == "Inicio":
+    st.markdown('<p class="section-title">Bienvenido</p>', unsafe_allow_html=True)
 
-elif sección == "Cargar datos":
-    st.write("Carga un archivo CSV para visualizar y graficar datos.")
-    archivo = st.file_uploader("Sube archivo CSV", type="csv")
-    if archivo is not None:
+    st.markdown("""
+    <div class="card">
+    Este dashboard permite cargar archivos CSV, generar gráficas automáticas 
+    y visualizar un ejemplo biomédico usando niveles simulados de 
+    <b>Troponina cardíaca</b>, un importante biomarcador para diagnóstico de infarto.
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.image(
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Troponin.png/640px-Troponin.png",
+        caption="Complejo de Troponina (I, T y C)"
+    )
+
+# -----------------------------
+# SECCIÓN CARGAR DATOS
+# -----------------------------
+elif seccion == "Cargar datos":
+    st.markdown('<p class="section-title">📂 Cargar archivo CSV</p>', unsafe_allow_html=True)
+
+    archivo = st.file_uploader(
+        "Arrastra o selecciona un archivo CSV (máx. 200 MB)",
+        type="csv"
+    )
+
+    if archivo is None:
+        st.info("📁 Aún no has cargado un archivo.")
+    else:
         df = pd.read_csv(archivo)
-        st.write("Datos cargados:")
+        st.success("Archivo cargado correctamente ✔")
         st.dataframe(df)
-        st.write("Histograma de la primera columna:")
+
+        st.markdown('<p class="section-title">📈 Histograma automático</p>', unsafe_allow_html=True)
+
         try:
             fig, ax = plt.subplots()
-            df.iloc[:,0].hist(ax=ax, bins=20)
+            df.iloc[:, 0].hist(ax=ax, bins=20)
+            ax.set_xlabel(df.columns[0])
+            ax.set_ylabel("Frecuencia")
             st.pyplot(fig)
-        except Exception as e:
-            st.error("No se puede graficar: asegúrate que la primera columna sea numérica.")
+        except:
+            st.error("No se pudo graficar. La primera columna debe ser numérica.")
 
-elif sección == "Ejemplo: niveles de Troponina":
-    st.header("Ejemplo simulado: Troponina cardíaca (I/T)")
+# -----------------------------
+# SECCIÓN TROPONINA
+# -----------------------------
+elif seccion == "Ejemplo: Troponina":
+    st.markdown('<p class="section-title">🔬 Ejemplo biomédico: Niveles de Troponina cardíaca</p>', unsafe_allow_html=True)
 
-    st.write("""
-    La troponina cardíaca se mide en sangre para detectar daño al músculo del corazón.
-    En personas sanas, los valores son muy bajos o indetectables.  
-    A continuación un conjunto de valores simulados (ng/mL) correspondientes a diferentes muestras.
-    """)
+    st.markdown("""
+    <div class="card">
+    La <b>troponina</b> es un biomarcador que aumenta en sangre cuando hay daño al corazón, 
+    como durante un infarto agudo al miocardio.
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Datos simulados
     datos = pd.DataFrame({
-        "Muestra": [f"S{i}" for i in range(1,11)],
-        "Troponina (ng/mL)": [0.01, 0.02, 0.015, 0.03, 0.05, 0.2, 0.15, 0.04, 0.08, 0.12]
+        "Muestra": [f"S{i}" for i in range(1, 11)],
+        "Troponina (ng/mL)": [0.01, 0.02, 0.015, 0.03, 0.05, 0.20, 0.15, 0.04, 0.08, 0.12]
     })
 
-    st.write("Valores simulados de troponina:")
+    st.subheader("📋 Valores simulados")
     st.dataframe(datos)
 
-    st.write("Gráfica de niveles de troponina por muestra:")
+    st.subheader("📉 Gráfica de niveles de Troponina")
     fig, ax = plt.subplots()
     ax.plot(datos["Muestra"], datos["Troponina (ng/mL)"], marker='o')
     ax.set_ylabel("ng/mL")
@@ -57,9 +118,4 @@ elif sección == "Ejemplo: niveles de Troponina":
     plt.xticks(rotation=45)
     st.pyplot(fig)
 
-    st.write("""
-    En un contexto clínico, valores elevados de troponina pueden indicar daño al miocardio — por ejemplo tras un infarto.  
-    En cambio valores muy bajos o indetectables suelen corresponder a un corazón sano.  
-    Este ejemplo es solo ilustrativo; los rangos reales dependen del test de laboratorio.  
-    """)
 
