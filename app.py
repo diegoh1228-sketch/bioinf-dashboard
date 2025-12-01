@@ -1,121 +1,149 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+import numpy as np
+import plotly.express as px
+from PIL import Image
 
-# -----------------------------
-# ESTILO (CSS)
-# -----------------------------
-st.markdown("""
-<style>
-.big-title {
-    font-size: 38px;
-    color: #4A90E2;
-    font-weight: bold;
-}
-
-.card {
-    padding: 18px;
-    border-radius: 12px;
-    background-color: #F3F6FA;
-    border-left: 6px solid #4A90E2;
-    margin-bottom: 15px;
-}
-
-.section-title {
-    font-size: 26px;
-    color: #2C3E50;
-    font-weight: bold;
-    margin-top: 20px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# -----------------------------
-# TÍTULO PRINCIPAL
-# -----------------------------
-st.markdown('<p class="big-title">📊 Dashboard Bioinformático – Troponina</p>', unsafe_allow_html=True)
-
-st.sidebar.title("📌 Menú")
-seccion = st.sidebar.selectbox(
-    "Selecciona sección",
-    ["Inicio", "Cargar datos", "Ejemplo: Troponina"]
+# ============================
+# 🔧 CONFIGURACIÓN GENERAL
+# ============================
+st.set_page_config(
+    page_title="Dashboard Biomédico – Troponina",
+    layout="wide",
+    page_icon="🧬",
 )
 
-# -----------------------------
-# SECCIÓN INICIO
-# -----------------------------
-if seccion == "Inicio":
-    st.markdown('<p class="section-title">Bienvenido</p>', unsafe_allow_html=True)
+st.markdown(
+    """
+    <style>
+    .main-title {
+        font-size: 48px;
+        font-weight: 900;
+        text-align: center;
+        color: #4A90E2;
+        margin-bottom: -10px;
+    }
+    .subtitle {
+        text-align: center;
+        color: #6B6B6B;
+        font-size: 20px;
+        margin-bottom: 30px;
+    }
+    .card {
+        padding: 20px;
+        background: white;
+        border-radius: 18px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+    }
+    .upload-box {
+        border: 3px dashed #4A90E2;
+        padding: 35px;
+        border-radius: 18px;
+        text-align: center;
+        background: #F7FBFF;
+    }
+    .metric-card {
+        background: #F0F8FF;
+        padding: 20px;
+        border-radius: 14px;
+        text-align: center;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-    st.markdown("""
-    <div class="card">
-    Este dashboard permite cargar archivos CSV, generar gráficas automáticas 
-    y visualizar un ejemplo biomédico usando niveles simulados de 
-    <b>Troponina cardíaca</b>, un importante biomarcador para diagnóstico de infarto.
-    </div>
-    """, unsafe_allow_html=True)
+# ============================
+# 🎨 TÍTULO PRINCIPAL
+# ============================
+st.markdown('<h1 class="main-title">Dashboard de Análisis de Troponina (cTnI)</h1>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle">Visualización profesional para análisis clínico y bioinformático</p>', unsafe_allow_html=True)
 
-    st.image(
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Troponin.png/640px-Troponin.png",
-        caption="Complejo de Troponina (I, T y C)"
+# Imagen de referencia (sin copyright, ejemplo genérico)
+st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Troponin.png/640px-Troponin.png", width=350)
+
+st.write("---")
+
+# ============================
+# 📁 SUBIR ARCHIVO
+# ============================
+st.markdown('<div class="card">', unsafe_allow_html=True)
+st.subheader("📤 Cargar archivo CSV de datos de Troponina")
+st.markdown('<div class="upload-box">', unsafe_allow_html=True)
+file = st.file_uploader("Sube un archivo CSV (máx. 200MB)", type=["csv"])
+st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
+
+if file:
+    df = pd.read_csv(file)
+
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("📊 Vista Preliminar de los Datos")
+    st.dataframe(df, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # ============================
+    # 📈 GRÁFICAS PRINCIPALES
+    # ============================
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("📈 Distribución de Troponina")
+
+    numeric_cols = df.select_dtypes(include=["int", "float"]).columns.tolist()
+
+    if numeric_cols:
+        selected = st.selectbox("Selecciona la columna de Troponina:", numeric_cols)
+
+        fig = px.histogram(df, x=selected, nbins=30, title=f"Distribución de {selected}")
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Métricas
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+            st.metric("Media", f"{df[selected].mean():.2f}")
+            st.markdown('</div>', unsafe_allow_html=True)
+        with col2:
+            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+            st.metric("Mediana", f"{df[selected].median():.2f}")
+            st.markdown('</div>', unsafe_allow_html=True)
+        with col3:
+            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+            st.metric("Máximo", f"{df[selected].max():.2f}")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # ============================
+    # 📉 Gráfica de Línea
+    # ============================
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("📉 Tendencia de Troponina en el Tiempo")
+
+    if len(numeric_cols) >= 1:
+        time_col = st.selectbox("Columna de tiempo (opcional)", df.columns)
+        value_col = st.selectbox("Columna de valores", numeric_cols)
+
+        fig2 = px.line(df, x=time_col, y=value_col, title=f"Tendencia temporal de {value_col}")
+        st.plotly_chart(fig2, use_container_width=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # ============================
+    # 🔬 Interpretación simple
+    # ============================
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("🧪 Interpretación Clínica Simplificada")
+
+    st.info(
+        "**Niveles elevados de Troponina I (cTnI)** suelen asociarse con daño cardíaco agudo, incluyendo infarto del miocardio, sepsis o miocarditis."
     )
 
-# -----------------------------
-# SECCIÓN CARGAR DATOS
-# -----------------------------
-elif seccion == "Cargar datos":
-    st.markdown('<p class="section-title">📂 Cargar archivo CSV</p>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    archivo = st.file_uploader(
-        "Arrastra o selecciona un archivo CSV (máx. 200 MB)",
-        type="csv"
-    )
+else:
+    st.warning("Sube un archivo CSV para comenzar.")
 
-    if archivo is None:
-        st.info("📁 Aún no has cargado un archivo.")
-    else:
-        df = pd.read_csv(archivo)
-        st.success("Archivo cargado correctamente ✔")
-        st.dataframe(df)
-
-        st.markdown('<p class="section-title">📈 Histograma automático</p>', unsafe_allow_html=True)
-
-        try:
-            fig, ax = plt.subplots()
-            df.iloc[:, 0].hist(ax=ax, bins=20)
-            ax.set_xlabel(df.columns[0])
-            ax.set_ylabel("Frecuencia")
-            st.pyplot(fig)
-        except:
-            st.error("No se pudo graficar. La primera columna debe ser numérica.")
-
-# -----------------------------
-# SECCIÓN TROPONINA
-# -----------------------------
-elif seccion == "Ejemplo: Troponina":
-    st.markdown('<p class="section-title">🔬 Ejemplo biomédico: Niveles de Troponina cardíaca</p>', unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="card">
-    La <b>troponina</b> es un biomarcador que aumenta en sangre cuando hay daño al corazón, 
-    como durante un infarto agudo al miocardio.
-    </div>
-    """, unsafe_allow_html=True)
-
-    datos = pd.DataFrame({
-        "Muestra": [f"S{i}" for i in range(1, 11)],
-        "Troponina (ng/mL)": [0.01, 0.02, 0.015, 0.03, 0.05, 0.20, 0.15, 0.04, 0.08, 0.12]
-    })
-
-    st.subheader("📋 Valores simulados")
-    st.dataframe(datos)
-
-    st.subheader("📉 Gráfica de niveles de Troponina")
-    fig, ax = plt.subplots()
-    ax.plot(datos["Muestra"], datos["Troponina (ng/mL)"], marker='o')
-    ax.set_ylabel("ng/mL")
-    ax.set_xlabel("Muestra")
-    plt.xticks(rotation=45)
-    st.pyplot(fig)
 
 
