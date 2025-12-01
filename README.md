@@ -1,24 +1,68 @@
-# 📊 Dashboard Bioinformático – Análisis de Troponina
+# Dashboard Bioinformático Profesional – Análisis de Troponina
 
-Este proyecto es un dashboard interactivo creado en **Streamlit** para visualizar datos, cargar archivos CSV y mostrar un ejemplo biomédico utilizando niveles simulados de **Troponina cardíaca (I/T)**.
+Este proyecto es un dashboard avanzado desarrollado en **Streamlit**, diseñado para cargar, procesar y visualizar datos biomédicos. Incluye un ejemplo profesional utilizando niveles simulados de **Troponina cardíaca (cTnI)**, un biomarcador clave en el diagnóstico de infarto agudo al miocardio.
+
+---
 
 ## 🚀 Funcionalidades
-- Carga de archivos CSV (hasta 200MB)
-- Visualización automática de tablas
-- Histograma de la primera columna numérica
-- Sección biomédica con valores simulados de troponina
-- Gráfico claro y estilizado de niveles por muestra
-- Interfaz estética con colores, tarjetas y diseño limpio
 
-## 🧬 ¿Qué es la troponina?
-La troponina es un biomarcador fundamental para el diagnóstico de **infarto agudo al miocardio**.  
-Sus niveles en sangre aumentan cuando existe daño en el músculo del corazón.
+* **Carga de archivos CSV** (hasta 200 MB)
+* **Visualización automática en tablas**
+* **Gráficas dinámicas y profesionales** usando Plotly
+* **Estadísticas básicas automáticas** (media, mediana, desviación estándar)
+* **Sección biomédica incluida** con datos simulados de troponina
+* **Diseño estético tipo dashboard clínico**
 
-## 🛠 Tecnologías usadas
-- Python
-- Streamlit
-- Pandas
-- Matplotlib
+---
 
-## 💻 Ejecutar localmente
+## 📁 Estructura del proyecto
+
+```
+bioinf-dashboard/
+│
+├── app.py               # Código principal del dashboard en Streamlit
+├── requirements.txt     # Dependencias del proyecto
+├── README.md            # Este archivo
+└── .gitignore
+```
+
+---
+
+## ▶️ Cómo ejecutar el proyecto localmente
+
+1. Clona este repositorio:
+
+```
+git clone https://github.com/tuusuario/bioinf-dashboard.git
+```
+
+2. Entra al directorio:
+
+```
+cd bioinf-dashboard
+```
+
+3. Instala dependencias:
+
+```
+pip install -r requirements.txt
+```
+
+4. Ejecuta el dashboard:
+
+```
+streamlit run app.py
+```
+
+---
+
+## 📌 Nota sobre datos biomédicos
+
+Los valores de troponina incluidos son **simulados** y se usan únicamente con fines educativos.
+
+---
+
+## 📄 Licencia
+
+Proyecto bajo licencia **MIT**. Puedes usarlo y modificarlo libremente.
 
