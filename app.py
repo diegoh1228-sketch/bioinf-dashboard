@@ -1,137 +1,176 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import numpy as np
 
 # ---------------------------------------------------------
 # CONFIGURACIÓN GENERAL
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Dashboard de Troponina",
+    page_title="Dashboard Ultra Pro - Troponina",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # ---------------------------------------------------------
-# DATASET CARGADO POR DEFECTO
+# DATASET POR DEFECTO
 # ---------------------------------------------------------
 @st.cache_data
 def load_data():
-    data = {
-        "Paciente_ID": [1, 2, 3, 4, 5, 6],
-        "Troponina_ng_mL": [0.01, 0.15, 0.47, 1.2, 3.4, 8.9],
-        "Edad": [23, 45, 67, 38, 59, 71],
-        "Diagnóstico": [
-            "Sano",
-            "Sospecha",
-            "IAM leve",
-            "IAM moderado",
-            "IAM severo",
-            "Crítico"
-        ]
-    }
-    df = pd.DataFrame(data)
+    np.random.seed(42)
+    n = 60
+    df = pd.DataFrame({
+        "Paciente_ID": range(1, n+1),
+        "Edad": np.random.randint(20, 90, n),
+        "Troponina_ng_mL": np.round(np.random.uniform(0.01, 12, n), 2)
+    })
+    
+    # Clasificación automática
+    condiciones = [
+        df["Troponina_ng_mL"] < 0.04,
+        df["Troponina_ng_mL"].between(0.04, 0.4),
+        df["Troponina_ng_mL"].between(0.4, 1),
+        df["Troponina_ng_mL"].between(1, 5),
+        df["Troponina_ng_mL"] > 5
+    ]
+    categorias = ["Normal", "Leve", "Moderado", "Alto", "Crítico"]
+    df["Diagnóstico"] = np.select(condiciones, categorias)
     return df
 
 df = load_data()
 
 # ---------------------------------------------------------
-# SIDEBAR
+# SIDEBAR (controls)
 # ---------------------------------------------------------
-st.sidebar.title("🔬 Dashboard de Troponina")
-opcion = st.sidebar.radio(
+st.sidebar.title("Configuración")
+seccion = st.sidebar.radio(
     "Selecciona una sección:",
-    ["📈 Análisis", "ℹ️ Información", "🧬 Estructura Proteica"]
+    ["📊 Análisis Interactivo", "📈 Gráficas Avanzadas", "📚 Información Médica", "🧬 Troponina - Detalles Proteicos"]
 )
 
 st.sidebar.write("---")
-st.sidebar.write("Desarrollado para proyecto final 💻🧪")
+st.sidebar.subheader("Filtros Globales")
+
+# Filtro de rango de troponina
+rango_trop = st.sidebar.slider(
+    "Rango de troponina (ng/mL)",
+    float(df.Troponina_ng_mL.min()),
+    float(df.Troponina_ng_mL.max()),
+    (float(df.Troponina_ng_mL.min()), float(df.Troponina_ng_mL.max()))
+)
+
+# Filtro diagnóstico
+dx_filtro = st.sidebar.multiselect(
+    "Filtrar por diagnóstico:",
+    options=df["Diagnóstico"].unique(),
+    default=df["Diagnóstico"].unique()
+)
+
+# Aplicar filtros globales
+df_f = df[
+    (df["Troponina_ng_mL"].between(rango_trop[0], rango_trop[1])) &
+    (df["Diagnóstico"].isin(dx_filtro))
+]
 
 # ---------------------------------------------------------
-# SECCIÓN 1: ANÁLISIS
+# SECCIÓN: ANÁLISIS INTERACTIVO
 # ---------------------------------------------------------
-if opcion == "📈 Análisis":
-    st.title("📈 Análisis de Niveles de Troponina")
-    st.write(
-        "Aquí puedes visualizar los valores almacenados y observar "
-        "si existen indicios de infarto agudo al miocardio (IAM)."
-    )
+if seccion == "📊 Análisis Interactivo":
+    st.title("📊 Análisis Interactivo de Troponina")
 
-    st.subheader("📊 Tabla de Datos")
-    st.dataframe(df, use_container_width=True)
+    st.subheader("📌 Dataset Filtrado")
+    st.caption("El dataset cambia dinámicamente con los filtros del sidebar.")
+    st.dataframe(df_f, use_container_width=True)
 
-    st.subheader("📉 Distribución de Troponina")
-    fig = px.bar(
-        df,
-        x="Paciente_ID",
+    # Estadísticas
+    st.subheader("📈 Estadísticas Rápidas")
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric("Promedio", f"{df_f.Troponina_ng_mL.mean():.2f} ng/mL")
+    col2.metric("Máximo", f"{df_f.Troponina_ng_mL.max():.2f} ng/mL")
+    col3.metric("Mínimo", f"{df_f.Troponina_ng_mL.min():.2f} ng/mL")
+    col4.metric("Pacientes", len(df_f))
+
+# ---------------------------------------------------------
+# SECCIÓN: GRÁFICAS AVANZADAS
+# ---------------------------------------------------------
+elif seccion == "📈 Gráficas Avanzadas":
+    st.title("📈 Gráficas Avanzadas de Troponina")
+
+    # Barplot
+    st.subheader("Distribución por Diagnóstico")
+    fig = px.box(
+        df_f,
+        x="Diagnóstico",
         y="Troponina_ng_mL",
-        color="Diagnóstico",
-        title="Niveles de Troponina por Paciente",
-        labels={"Troponina_ng_mL": "Troponina (ng/mL)", "Paciente_ID": "ID"},
-        text_auto=True
+        points="all",
+        title="Distribución de troponina por categoría diagnóstica"
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("📈 Relación Edad vs Troponina")
+    # Scatter edad vs troponina
+    st.subheader("Edad vs Troponina (Scatter interactivo)")
     fig2 = px.scatter(
-        df,
+        df_f,
         x="Edad",
         y="Troponina_ng_mL",
         size="Troponina_ng_mL",
         color="Diagnóstico",
-        title="Relación entre Edad y Troponina",
-        labels={"Troponina_ng_mL": "Troponina (ng/mL)"}
+        hover_data=["Paciente_ID"],
+        title="Relación entre Edad y Niveles de Troponina"
     )
     st.plotly_chart(fig2, use_container_width=True)
 
+    # Histograma
+    st.subheader("Histograma de Troponina")
+    fig3 = px.histogram(
+        df_f,
+        x="Troponina_ng_mL",
+        nbins=20,
+        color="Diagnóstico",
+        title="Distribución general de valores de troponina"
+    )
+    st.plotly_chart(fig3, use_container_width=True)
+
 # ---------------------------------------------------------
-# SECCIÓN 2: INFORMACIÓN
+# INFORMACIÓN MÉDICA
 # ---------------------------------------------------------
-elif opcion == "ℹ️ Información":
-    st.title("ℹ️ Información sobre la Troponina")
+elif seccion == "📚 Información Médica":
+    st.title("📚 Información Clínica de la Troponina")
+
     st.write("""
-La **troponina** es una proteína estructural del músculo cardíaco.  
-Su medición en sangre es la **prueba más importante y confiable** para diagnosticar un **infarto agudo al miocardio (IAM)**.
+La **troponina** es el biomarcador más importante para diagnosticar un **infarto agudo al miocardio (IAM)**.
 
-### 🔍 ¿Qué indica su nivel en sangre?
-
+### Interpretación clínica:
 - **0–0.04 ng/mL** → Normal  
-- **0.04–0.4 ng/mL** → Posible lesión  
-- **>0.4 ng/mL** → SOSPECHA de infarto  
-- **>1 ng/mL** → ALTO riesgo  
-- **>5 ng/mL** → PROBABLE daño cardíaco severo  
-
-### 🧪 ¿Qué mide este dashboard?
-
-Este dashboard analiza:
-
-- Niveles numéricos de troponina  
-- Edad del paciente  
-- Clasificación diagnóstica  
-- Relaciones entre variables  
-
-Todo esto ayuda a simular cómo se interpretan estos estudios en un contexto clínico.
+- **0.04–0.4 ng/mL** → Sospecha de daño  
+- **0.4–1 ng/mL** → Daño moderado  
+- **1–5 ng/mL** → Alto riesgo  
+- **>5 ng/mL** → Daño severo al miocardio  
 """)
 
 # ---------------------------------------------------------
-# SECCIÓN 3: ESTRUCTURA PROTEICA
+# INFORMACIÓN PROTEICA
 # ---------------------------------------------------------
-elif opcion == "🧬 Estructura Proteica":
-    st.title("🧬 Estructura de la Troponina (Descripción)")
+elif seccion == "🧬 Troponina - Detalles Proteicos":
+    st.title("🧬 Troponina: Subunidades y Función")
+
     st.write("""
-La **troponina** está formada por **tres subunidades**:
+La troponina está compuesta por **tres subunidades principales**:
 
-### **1. Troponina C (TnC)**
-- Une calcio durante la contracción muscular.
+### Troponina C (TnC)
+- Se une al calcio para iniciar la contracción muscular.
 
-### **2. Troponina I (TnI)**
-- Inhibe la interacción actina-miosina.  
-- Es la más usada como **biomarcador cardiaco**.
+### Troponina I (TnI)
+- Inhibe la interacción actina-miosina.
+- Es el biomarcador más específico en sangre.
 
-### **3. Troponina T (TnT)**
-- Conecta el complejo a la tropomiosina.
+### Troponina T (TnT)
+- Ancla el complejo troponina a la tropomiosina.
 
-La presencia elevada de **TnI** o **TnT** en sangre indica daño en el miocardio.
+Elevaciones de **TnI** o **TnT** se utilizan para diagnosticar daño cardíaco.
 """)
+
 
 
 
