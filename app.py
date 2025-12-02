@@ -3,12 +3,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
-from io import StringIO
 
 # ---------- Config ----------
-st.set_page_config(page_title="Dashboard Troponina (cTnI) - Pro",
+st.set_page_config(page_title="Dashboard Troponina (cTnI) - Profesional",
                    page_icon="🫀",
                    layout="wide")
 
@@ -25,23 +23,25 @@ st.markdown("""
 
 # ---------- Title ----------
 st.markdown('<div class="header">Dashboard Profesional — Troponina cardíaca (cTnI)</div>', unsafe_allow_html=True)
-st.markdown('**Interfaz interactiva** para explorar niveles de troponina, con información clínica y visualización de la proteína.')
+st.markdown('**Interfaz interactiva** para explorar niveles de troponina, datos clínicos y visualizaciones de la proteína.')
 
 st.write("---")
 
 # ---------- Default dataset generator ----------
-def generate_default_df(n=40, seed=42):
+def generate_default_df(n=60, seed=42):
     np.random.seed(seed)
-    start = datetime(2025,1,1)
+    start = datetime(2025, 1, 1)
+
     ids = list(range(1, n+1))
     edades = np.random.randint(18, 90, n)
     sexos = np.random.choice(["Masculino", "Femenino"], n)
-    # troponina distribution skewed: most low, some high
+
     troponina = np.round(np.concatenate([
-        np.random.beta(1.5, 50, int(n*0.75)) * 0.05,  # low values
-        np.random.beta(2, 5, n - int(n*0.75)) * 3.0   # some high
+        np.random.beta(1.5, 50, int(n*0.75)) * 0.05,
+        np.random.beta(2, 5, n - int(n*0.75)) * 3.0
     ]), 3)
     np.random.shuffle(troponina)
+
     diagnosticos = []
     for v in troponina:
         if v < 0.014:
@@ -52,8 +52,10 @@ def generate_default_df(n=40, seed=42):
             diagnosticos.append("Sospecha de daño")
         else:
             diagnosticos.append("Probable Infarto")
+
     fechas = [(start + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(n)]
-    df = pd.DataFrame({
+
+    return pd.DataFrame({
         "Paciente_ID": ids,
         "Edad": edades,
         "Sexo": sexos,
@@ -61,141 +63,102 @@ def generate_default_df(n=40, seed=42):
         "Diagnóstico": diagnosticos,
         "Fecha": fechas
     })
-    return df
 
-# Load default dataset (embedded)
-default_df = generate_default_df(n=60)
+# ---------- Load default dataset ----------
+df_default = generate_default_df()
 
-# ---------- Sidebar: upload / options ----------
+# ---------- Sidebar ----------
 with st.sidebar:
     st.header("Datos")
-    uploaded = st.file_uploader("Sube CSV (opcional). Si no, se usa dataset por defecto.", type=["csv"])
-    replace_default = st.checkbox("Usar únicamente datos por defecto", value=False)
-    st.markdown("**Filtros rápidos**")
-    sexo_filter = st.multiselect("Sexo", options=["Masculino","Femenino"], default=["Masculino","Femenino"])
-    edad_min, edad_max = st.slider("Rango de edad", 18, 90, (18,90))
-    download_btn = st.empty()
+    file = st.file_uploader("Sube un archivo CSV (opcional)", type=["csv"])
+    use_default = st.checkbox("Usar solo el dataset por defecto", value=True)
 
-# ---------- Decide dataset ----------
-if uploaded and not replace_default:
-    try:
-        df = pd.read_csv(uploaded)
-        st.success("CSV cargado ✅ (puedes usar el dataset por defecto con la caja lateral).")
-    except Exception as e:
-        st.error("Error cargando CSV. Usando dataset por defecto.")
-        df = default_df.copy()
-elif uploaded and replace_default:
-    st.warning("Ha seleccionado usar solo los datos por defecto. Ignorando el CSV subido.")
-    df = default_df.copy()
+    st.markdown("### Filtros")
+    sexo_filtro = st.multiselect("Sexo:", ["Masculino", "Femenino"], default=["Masculino", "Femenino"])
+    edad_min, edad_max = st.slider("Edad", 18, 90, (18, 90))
+
+# ---------- Load Data ----------
+if use_default:
+    df = df_default.copy()
 else:
-    df = default_df.copy()
-
-# Basic sanitization: ensure troponina column exists
-if "Troponina_cTnI_ng_mL" not in df.columns:
-    # try to find a numeric column and rename it
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    if numeric_cols:
-        df = df.rename(columns={numeric_cols[0]: "Troponina_cTnI_ng_mL"})
+    if file:
+        df = pd.read_csv(file)
     else:
-        st.error("El dataset no contiene columna numérica de troponina. Asegúrate de tener una columna numérica.")
-        st.stop()
+        df = df_default.copy()
 
-# Apply sidebar filters
-df = df[df["Sexo"].isin(sexo_filter)]
+# Safety check
+if "Troponina_cTnI_ng_mL" not in df.columns:
+    st.error("El CSV debe incluir la columna 'Troponina_cTnI_ng_mL'.")
+    st.stop()
+
+# Filters
+df = df[df["Sexo"].isin(sexo_filtro)]
 df = df[(df["Edad"] >= edad_min) & (df["Edad"] <= edad_max)]
 
 # ---------- Tabs ----------
-tab1, tab2, tab3, tab4 = st.tabs(["Explorar datos", "Análisis", "Información clínica", "Visualizar proteína"])
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Exploración", "📈 Análisis", "📘 Información clínica", "🧬 Visualizar proteína"])
 
-# ---------- Tab 1: Exploración ----------
+# ---------- TAB 1 EXPLORACIÓN ----------
 with tab1:
-    st.subheader("Exploración de datos")
-    st.markdown("Vista previa del dataset (filtrado). Puedes descargar el subset filtrado.")
-    st.dataframe(df.reset_index(drop=True), use_container_width=True)
+    st.subheader("📊 Exploración del Dataset")
+    st.dataframe(df, use_container_width=True)
 
-    # Download filtered data
-    csv = df.to_csv(index=False).encode('utf-8')
-    download_btn.download_button("Descargar CSV filtrado", data=csv, file_name="troponina_filtrado.csv", mime="text/csv")
-
-    st.markdown("---")
-    # Quick scatter: troponina vs edad
-    st.markdown("**Troponina vs Edad**")
-    fig = px.scatter(df, x="Edad", y="Troponina_cTnI_ng_mL", color="Diagnóstico",
-                     hover_data=["Paciente_ID","Sexo","Fecha"], size="Troponina_cTnI_ng_mL",
-                     title="Troponina (ng/mL) según edad y diagnóstico")
+    # Scatter plot
+    st.markdown("### Troponina vs Edad")
+    fig = px.scatter(df, x="Edad", y="Troponina_cTnI_ng_mL",
+                     color="Diagnóstico",
+                     size="Troponina_cTnI_ng_mL",
+                     hover_data=["Paciente_ID", "Sexo", "Fecha"],
+                     title="Relación Troponina–Edad")
     st.plotly_chart(fig, use_container_width=True)
 
-# ---------- Tab 2: Análisis ----------
+# ---------- TAB 2 ANÁLISIS ----------
 with tab2:
-    st.subheader("Análisis estadístico y visualizaciones")
-    col1, col2, col3 = st.columns([1,1,1])
-    with col1:
-        mean_val = df["Troponina_cTnI_ng_mL"].mean()
-        st.metric("Media (ng/mL)", f"{mean_val:.3f}")
-    with col2:
-        median_val = df["Troponina_cTnI_ng_mL"].median()
-        st.metric("Mediana (ng/mL)", f"{median_val:.3f}")
-    with col3:
-        max_val = df["Troponina_cTnI_ng_mL"].max()
-        st.metric("Máximo (ng/mL)", f"{max_val:.3f}")
+    st.subheader("📈 Análisis estadístico")
 
-    st.markdown("**Distribución de Troponina**")
-    fig2 = px.histogram(df, x="Troponina_cTnI_ng_mL", nbins=40, color="Diagnóstico",
-                        marginal="box", title="Histograma de Troponina (con boxplot marginal)")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Media (ng/mL)", f"{df['Troponina_cTnI_ng_mL'].mean():.3f}")
+    col2.metric("Mediana (ng/mL)", f"{df['Troponina_cTnI_ng_mL'].median():.3f}")
+    col3.metric("Máximo (ng/mL)", f"{df['Troponina_cTnI_ng_mL'].max():.3f}")
+
+    st.markdown("### Distribución de troponina")
+    fig2 = px.histogram(df, x="Troponina_cTnI_ng_mL", nbins=40, color="Diagnóstico")
     st.plotly_chart(fig2, use_container_width=True)
 
-    st.markdown("**Series temporales (si la columna Fecha está presente)**")
-    if "Fecha" in df.columns:
-        try:
-            df["Fecha_dt"] = pd.to_datetime(df["Fecha"])
-            df_ts = df.groupby("Fecha_dt")["Troponina_cTnI_ng_mL"].mean().reset_index()
-            fig3 = px.line(df_ts, x="Fecha_dt", y="Troponina_cTnI_ng_mL", markers=True,
-                           title="Promedio diario de Troponina")
-            st.plotly_chart(fig3, use_container_width=True)
-        except Exception:
-            st.info("La columna Fecha no tiene formato válido; conviértela a YYYY-MM-DD para ver la serie temporal.")
-    else:
-        st.info("No hay columna Fecha en el dataset.")
+    st.markdown("### Boxplot por diagnóstico")
+    fig3 = px.box(df, x="Diagnóstico", y="Troponina_cTnI_ng_mL", points="all")
+    st.plotly_chart(fig3, use_container_width=True)
 
-    st.markdown("**Boxplot por diagnóstico**")
-    fig4 = px.box(df, x="Diagnóstico", y="Troponina_cTnI_ng_mL", points="all", title="Troponina por Diagnóstico")
-    st.plotly_chart(fig4, use_container_width=True)
-
-# ---------- Tab 3: Información clínica ----------
+# ---------- TAB 3 INFO CLÍNICA ----------
 with tab3:
-    st.subheader("Información sobre Troponina cardíaca (cTnI)")
+    st.subheader("📘 Información sobre la Troponina Cardíaca (cTnI)")
     st.markdown("""
-    - La **troponina cardíaca (cTnI / cTnT)** es una proteína del músculo cardíaco que se libera en sangre
-      cuando hay daño al miocardio (por ejemplo infarto agudo).
-    - Los **rangos** dependen del ensayo del laboratorio; valores típicos de referencia suelen ser muy bajos
-      (por ejemplo < 0.014 ng/mL en algunos kits).  
-    - Valores detectables y en aumento en muestras seriadas son un criterio importante para el diagnóstico de infarto.
+    La **troponina cardíaca** es un biomarcador fundamental para evaluar daño al músculo cardíaco.
+    Valores elevados sugieren daño miocárdico, incluyendo **infarto agudo al miocardio (IAM)**.
     """)
-    st.markdown("**Referencias generales:**")
-    st.markdown("- MedlinePlus: prueba de troponina")
-    st.markdown("- Guías clínicas: interpretación depende del ensayo y del contexto clínico")
 
-    st.markdown("**Imágenes y recursos**")
-    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Troponin.png/640px-Troponin.png",
-             caption="Complejo de troponina (I, T, C) — imagen ilustrativa", width=420)
-    st.image("https://upload.wikimedia.org/wikipedia/commons/4/44/Heart_anterior_exterior_view.jpg",
-             caption="Anatomía: vista anterior del corazón", width=420)
+    st.markdown("### Imágenes explicativas")
 
-# ---------- Tab 4: Visualizar la proteína ----------
+    st.image("https://raw.githubusercontent.com/MChevi/biomedia-assets/main/troponin_complex.png",
+             caption="Complejo de Troponina (I, T y C)", width=400)
+
+    st.image("https://raw.githubusercontent.com/MChevi/biomedia-assets/main/heart_anterior.png",
+             caption="Vista anatómica del corazón", width=420)
+
+# ---------- TAB 4 PROTEÍNA ----------
 with tab4:
-    st.subheader("Visualización de la proteína — Troponina T / Troponina I")
-    st.markdown("Aquí mostramos imágenes representativas de la proteína y su localización en el músculo cardiaco.")
-    st.markdown("**Modelos moleculares / estructuras (ilustrativas)**")
-    st.image("https://files.rcsb.org/ligands/view/TPO_idealized_1.png", caption="Modelo (ilustrativo) — PDB / representaciones", width=360)
-    st.markdown("**Secuencia y notas (ejemplo)**")
-    st.code("Muestra: Troponina T (fragmento) — MKSK... (secuencia ilustrativa)", language="text")
-    st.markdown("**Explicación gráfica**")
-    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Skeletal_muscle_diagram.svg/800px-Skeletal_muscle_diagram.svg.png",
-             caption="Diagrama músculo/filamentos — troponina regula interacciones actina-miosina", width=520)
+    st.subheader("🧬 Visualización de la proteína Troponina")
+
+    st.markdown("Modelo molecular ilustrativo:")
+    st.image("https://raw.githubusercontent.com/MChevi/biomedia-assets/main/molecular_model.png",
+             caption="Modelo molecular de la Troponina", width=360)
+
+    st.markdown("Estructura en el músculo y filamentos:")
+    st.image("https://raw.githubusercontent.com/MChevi/biomedia-assets/main/muscle_structure.png",
+             caption="Estructura del sarcómero con troponina", width=520)
 
 st.write("---")
-st.markdown("⚠️ **Nota:** Los valores y las interpretaciones mostradas son **para fines educativos**. En la práctica clínica, siempre seguir protocolos y laboratorios autorizados.")
-
+st.markdown("Dashboard profesional creado para análisis y visualización de troponina cardíaca (cTnI).")
 
 
 
